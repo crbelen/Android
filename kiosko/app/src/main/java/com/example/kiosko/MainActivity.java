@@ -10,8 +10,10 @@ import android.view.WindowManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.appcompat.app.AppCompatActivity;
-import android.app.admin.DevicePolicyManager;
-import android.content.ComponentName;
+import android.content.Context;
+import android.os.PowerManager;
+
+
 
 
 
@@ -26,7 +28,7 @@ public class MainActivity extends AppCompatActivity {
     private static final long NORMAL_REFRESH_DELAY = 2 * 60 * 1000; // 2 minutos en milisegundos
     private static final long ERROR_REFRESH_DELAY = 30 * 1000; // 30 segundos en milisegundos
     private Runnable refreshRunnable;
-
+    private PowerManager.WakeLock wakeLock;
 
     @SuppressLint({"SetJavaScriptEnabled", "ClickableViewAccessibility"})
     @Override
@@ -53,7 +55,13 @@ public class MainActivity extends AppCompatActivity {
 
             startLockTask();
 
+        // Obtener el PowerManager para controlar el estado de la pantalla
+        PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (powerManager != null) {
+            wakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "MiApp::MiWakeLockTag");
+        }
 
+        //toques para salir de app
         int[] touchCount = {0};
 
         webView.setOnTouchListener((v, event) -> {
@@ -79,6 +87,24 @@ public class MainActivity extends AppCompatActivity {
         CustomWebViewClient customWebViewClient = new CustomWebViewClient(this);
         webView.setWebViewClient(customWebViewClient);
     }
+
+    protected void onResume() {
+        super.onResume();
+        // Mantener la pantalla encendida mientras la actividad esté en primer plano
+        if (wakeLock != null && !wakeLock.isHeld()) {
+            wakeLock.acquire();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Liberar el WakeLock cuando la actividad pierda el foco
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+    }
+
 
 
     private void hideNavigationBar() {
