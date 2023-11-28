@@ -12,9 +12,7 @@ import android.webkit.WebView;
 import androidx.appcompat.app.AppCompatActivity;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
-import android.content.Context;
-import android.content.Intent;
-import android.widget.Toast;
+
 
 
 /*
@@ -28,9 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private static final long NORMAL_REFRESH_DELAY = 2 * 60 * 1000; // 2 minutos en milisegundos
     private static final long ERROR_REFRESH_DELAY = 30 * 1000; // 30 segundos en milisegundos
     private Runnable refreshRunnable;
-    private static final int REQUEST_CODE_ENABLE_ADMIN = 1;
-    private DevicePolicyManager devicePolicyManager;
-    private ComponentName adminComponent;
+
 
     @SuppressLint({"SetJavaScriptEnabled", "ClickableViewAccessibility"})
     @Override
