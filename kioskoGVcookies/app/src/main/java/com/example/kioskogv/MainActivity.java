@@ -2,6 +2,7 @@ package com.example.kioskogv;
 
 import android.annotation.SuppressLint;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,15 +14,21 @@ import android.webkit.CookieManager;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 import android.content.Context;
 import android.os.PowerManager;
+import android.Manifest;
 
 
 
 public class MainActivity extends AppCompatActivity {
 
+    public SharedPreferences sharedPreferences;
     private WebView webView;
     private final Handler handler = new Handler();
 
@@ -30,14 +37,15 @@ public class MainActivity extends AppCompatActivity {
     private PowerManager.WakeLock wakeLock;
 
     private CookieManager cookieManager;  // Agregar instancia de CookieManager
-    private SharedPreferences sharedPreferences;
+    private static final int REQUEST_CAMERA_PERMISSION = 1;
+    private static final int MY_PERMISSIONS_REQUEST_INTERNET = 123;
 
     @SuppressLint({"SetJavaScriptEnabled", "ClickableViewAccessibility"})
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // PROVOCA ERROR:Ocultar la barra de título
+        // Ocultar la barra de título
         //getSupportActionBar().hide();
 
         // Configurar para modo kiosko
@@ -48,16 +56,13 @@ public class MainActivity extends AppCompatActivity {
 
         this.webView = this.findViewById(R.id.webView);
 
-        // Habilitar JavaScript y otras configuraciones necesarias
-        WebSettings webSettings = this.webView.getSettings();
-        webSettings.setJavaScriptEnabled(true);
-
-        // Cargar la página web
-        webView.loadUrl("https://panel.gestiondevisitas.es/punto-acceso");
-
-        // Habilitar el acceso a la cámara (necesario para funciones como getUserMedia)
-        webSettings.setMediaPlaybackRequiresUserGesture(false); // Puede ser necesario en algunas versiones de Android
-
+        // Verificar y solicitar permisos de Internet en tiempo de ejecución
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, MY_PERMISSIONS_REQUEST_INTERNET);
+        } else {
+            // El permiso de Internet ya está concedido, procede con la inicialización de WebView
+            initializeWebView();
+        }
         // Ocultar la barra de navegación
         this.hideNavigationBar();
 
@@ -88,6 +93,11 @@ public class MainActivity extends AppCompatActivity {
         });
 
 
+        // Verificar y solicitar permisos de cámara en tiempo de ejecución
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQUEST_CAMERA_PERMISSION);
+        }
+
         // Configurar CustomWebViewClient para manejar eventos de carga y errores
         final CustomWebViewClient customWebViewClient = new CustomWebViewClient(this);
         this.webView.setWebViewClient(customWebViewClient);
@@ -101,6 +111,38 @@ public class MainActivity extends AppCompatActivity {
 
         // Cargar las cookies al iniciar la aplicación
         this.loadCookies();
+    }
+
+    // Método para inicializar WebView, llamado después de verificar los permisos
+    private void initializeWebView() {
+        // Habilitar JavaScript y otras configuraciones necesarias
+        WebSettings webSettings = this.webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webSettings.setMediaPlaybackRequiresUserGesture(false);
+        webSettings.setAllowFileAccess(true);
+
+        // Cargar la página web
+        webView.loadUrl("https://panel.gestiondevisitas.es/punto-acceso");
+
+        // ...
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == MY_PERMISSIONS_REQUEST_INTERNET) {
+            // Verificar si el permiso de Internet fue concedido
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // El permiso de Internet fue concedido, procede con la inicialización de WebView
+                initializeWebView();
+            } else {
+                // El permiso de Internet fue denegado, puedes mostrar un mensaje al usuario o realizar otras acciones.
+                // Aquí puedes agregar lógica adicional según tus necesidades.
+            }
+        }
+
+        // ...
     }
 
     protected void onResume() {
@@ -179,6 +221,21 @@ public class MainActivity extends AppCompatActivity {
         // Establecer las cookies en CookieManager
         if (cookies != null && !cookies.isEmpty()) {
             this.cookieManager.setCookie("https://panel.gestiondevisitas.es/punto-acceso", cookies);
+        }
+        // Cargar las credenciales
+        loadCredentials();
+    }
+
+    // Método para cargar las credenciales desde SharedPreferences
+    private void loadCredentials() {
+        String storedUsername = sharedPreferences.getString("username", null);
+        String storedPassword = sharedPreferences.getString("password", null);
+
+        if (storedUsername != null && storedPassword != null) {
+            // Usar las credenciales para llenar los campos del formulario de inicio de sesión
+            String javascript = "javascript:document.getElementById('username').value = '" + storedUsername + "';" +
+                    "javascript:document.getElementById('password').value = '" + storedPassword + "';";
+            webView.evaluateJavascript(javascript, null);
         }
     }
 
